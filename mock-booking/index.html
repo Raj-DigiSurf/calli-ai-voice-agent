@@ -428,6 +428,9 @@
 </div>
 
 <script>
+// API server URL — update this after Railway deployment
+const API_URL = 'http://localhost:8000';
+
 const SERVICES = [
   {
     id: 1, category: 'popular',
@@ -691,7 +694,7 @@ async function renderTimeSlots() {
   let available = [], booked = [];
   try {
     const stylist = '(anyone)';
-    const resp = await fetch(`http://localhost:8000/availability?date=${dateISO}&stylist=${encodeURIComponent(stylist)}`);
+    const resp = await fetch(`${API_URL}/availability?date=${dateISO}&stylist=${encodeURIComponent(stylist)}`);
     const data = await resp.json();
     if (data.available) available = data.available;
     if (data.booked) booked = data.booked;
@@ -770,7 +773,7 @@ async function completeBooking() {
 
   // Save booking to server
   try {
-    const resp = await fetch('http://localhost:8000/book', {
+    const resp = await fetch('${API_URL}/book', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
