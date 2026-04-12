@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dalliance Hair Studio - Oatley</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #fff; color: #333; font-size: 14px; }
+
+    /* HEADER */
+    .site-header {
+      background: #3a6b6e;
+      padding: 32px 20px 24px;
+      text-align: center;
+    }
+    .site-header .logo {
+      font-size: 52px;
+      font-weight: 200;
+      color: #e8c4b8;
+      letter-spacing: 8px;
+      font-family: Georgia, serif;
+    }
+
+    .top-bar {
+      padding: 10px 20px;
+      font-size: 13px;
+      color: #555;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    .top-bar a { color: #3a6b6e; text-decoration: none; }
+
+    /* PAGE LAYOUT */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* PAGE 1 — LANDING */
+    .landing-content {
+      max-width: 900px;
+      margin: 24px auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 32px;
+    }
+    .landing-actions { display: flex; gap: 8px; margin-bottom: 20px; }
+    .btn-outline {
+      padding: 8px 16px;
+      border: 1px solid #ccc;
+      background: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #333;
+    }
+    .btn-outline:hover { border-color: #3a6b6e; color: #3a6b6e; }
+    .landing-text p { margin-bottom: 14px; line-height: 1.6; color: #444; font-size: 13.5px; }
+    .hours-box { border: 1px solid #eee; border-radius: 6px; padding: 16px; }
+    .hours-box h4 { font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+    .hours-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; border-bottom: 1px solid #f5f5f5; }
+    .hours-row:last-child { border: none; }
+    .hours-row .day { color: #555; }
+    .hours-row .time { color: #333; }
+    .hours-row .closed { color: #999; }
+
+    /* PAGE 2 — SERVICES */
+    .page-header {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px 20px 0;
+    }
+    .page-header h2 { font-size: 22px; font-weight: 300; margin-bottom: 16px; }
+    .service-tabs { display: flex; gap: 0; border-bottom: 1px solid #ddd; margin-bottom: 0; }
+    .tab {
+      padding: 8px 16px;
+      border: 1px solid #ddd;
+      border-bottom: none;
+      background: #f9f9f9;
+      cursor: pointer;
+      font-size: 13px;
+      color: #555;
+      margin-right: 4px;
+      border-radius: 4px 4px 0 0;
+    }
+    .tab.active { background: #fff; color: #333; font-weight: 500; border-bottom: 1px solid #fff; margin-bottom: -1px; }
+    .tab .count { display: inline-block; background: #3a6b6e; color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 4px; }
+
+    .services-list { max-width: 900px; margin: 0 auto; padding: 0 20px; }
+    .service-card {
+      border-bottom: 1px solid #eee;
+      padding: 16px 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      cursor: pointer;
+      position: relative;
+    }
+    .service-card:hover { background: #fafafa; }
+    .service-card.selected { background: #f0f7f7; }
+    .service-card .check {
+      position: absolute;
+      left: -8px;
+      top: 18px;
+      color: #3a6b6e;
+      font-size: 16px;
+      display: none;
+    }
+    .service-card.selected .check { display: block; }
+    .service-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .service-contains { font-size: 12px; color: #666; margin: 4px 0 8px; line-height: 1.8; }
+    .service-contains li { list-style: none; padding-left: 12px; position: relative; }
+    .service-contains li::before { content: "›"; position: absolute; left: 0; color: #888; }
+    .service-desc { font-size: 12px; color: #888; line-height: 1.5; }
+    .service-meta { text-align: right; white-space: nowrap; }
+    .service-price { font-weight: 600; font-size: 14px; color: #222; }
+    .service-duration { font-size: 12px; color: #888; margin-top: 4px; }
+    .service-duration span { font-weight: 600; }
+
+    .sticky-footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #fff;
+      border-top: 1px solid #eee;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .btn-primary {
+      padding: 10px 24px;
+      background: #3a6b6e;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary:hover { background: #2f5558; }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-secondary {
+      padding: 10px 20px;
+      background: #fff;
+      color: #3a6b6e;
+      border: 1px solid #3a6b6e;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* PAGE 3 — DATE & TIME */
+    .datetime-layout {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px 20px 80px;
+    }
+    .selected-services-summary {
+      margin-bottom: 24px;
+    }
+    .summary-item {
+      border: 1px solid #eee;
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+    .summary-item .order-num {
+      display: inline-block;
+      background: #f0f0f0;
+      border-radius: 3px;
+      padding: 2px 8px;
+      font-size: 11px;
+      margin-right: 8px;
+      color: #555;
+      cursor: grab;
+    }
+    .summary-item strong { font-size: 13.5px; }
+    .summary-sub { margin-top: 6px; }
+    .summary-sub-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 0 3px 24px;
+      font-size: 12px;
+      color: #555;
+    }
+    .summary-sub-item select {
+      border: none;
+      border-bottom: 1px dashed #3a6b6e;
+      color: #3a6b6e;
+      font-size: 12px;
+      background: transparent;
+      cursor: pointer;
+      padding: 0 2px;
+    }
+    .drag-hint { font-size: 11px; color: #aaa; margin-bottom: 16px; }
+
+    .section-title { font-size: 20px; font-weight: 300; margin-bottom: 16px; }
+
+    /* CALENDAR */
+    .calendar { border: 1px solid #eee; border-radius: 6px; overflow: hidden; max-width: 320px; margin-bottom: 24px; }
+    .cal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 16px; background: #f9f9f9; font-weight: 500; font-size: 14px;
+    }
+    .cal-nav { background: none; border: none; cursor: pointer; font-size: 16px; color: #3a6b6e; padding: 4px 8px; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+    .cal-day-name {
+      text-align: center; padding: 8px 4px; font-size: 11px;
+      font-weight: 600; color: #888; text-transform: uppercase;
+    }
+    .cal-day {
+      text-align: center; padding: 8px 4px; font-size: 13px;
+      cursor: pointer; border-radius: 4px; margin: 2px;
+    }
+    .cal-day:hover:not(.past):not(.closed) { background: #e8f3f3; }
+    .cal-day.today { font-weight: 700; color: #3a6b6e; }
+    .cal-day.selected { background: #3a6b6e; color: #fff; border-radius: 4px; }
+    .cal-day.past { color: #ccc; cursor: default; text-decoration: line-through; }
+    .cal-day.closed { color: #ccc; cursor: default; }
+    .cal-day.empty { cursor: default; }
+    .cal-day.fully-booked { color: #bbb; cursor: default; position: relative; }
+    .cal-day.fully-booked::after { content: ''; display: block; width: 6px; height: 6px; background: #e88; border-radius: 50%; margin: 2px auto 0; }
+    .cal-day.fully-booked:hover { background: none; }
+
+    /* TIME SLOTS */
+    .time-section { margin-bottom: 20px; }
+    .time-section-title { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+    .time-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .time-slot {
+      padding: 8px 6px;
+      text-align: center;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .time-slot.available { background: #fff; color: #333; }
+    .time-slot.available:hover { border-color: #3a6b6e; color: #3a6b6e; }
+    .time-slot.available.selected { background: #3a6b6e; color: #fff; border-color: #3a6b6e; font-weight: 600; }
+    .time-slot.unavailable { color: #bbb; text-decoration: line-through; cursor: default; border-color: #f0f0f0; }
+    .selected-date-title { font-size: 15px; font-weight: 600; margin: 16px 0 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+
+    .footer-btns { display: flex; justify-content: space-between; align-items: center; }
+
+    /* PAGE 4 — LOGIN */
+    .login-page {
+      max-width: 420px;
+      margin: 40px auto;
+      padding: 0 20px;
+      text-align: center;
+    }
+    .login-page h2 { font-size: 22px; font-weight: 300; margin-bottom: 24px; }
+    .btn-facebook {
+      width: 100%;
+      padding: 12px;
+      background: #1877f2;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .btn-facebook:hover { background: #1558b0; }
+    .or-divider { position: relative; margin: 16px 0; }
+    .or-divider::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #eee; }
+    .or-divider span { background: #fff; padding: 0 12px; position: relative; color: #999; font-size: 12px; }
+    .login-label { display: block; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 4px; margin-top: 14px; }
+    .login-input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    .login-input:focus { outline: none; border-color: #3a6b6e; }
+    .forgot { float: right; font-size: 12px; color: #3a6b6e; text-decoration: none; }
+    .btn-login { width: 100%; padding: 12px; background: #3a6b6e; color: #fff; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; margin-top: 16px; }
+    .btn-login:hover { background: #2f5558; }
+    .signup-link { margin-top: 16px; font-size: 13px; color: #555; }
+    .signup-link a { color: #3a6b6e; font-weight: 600; text-decoration: none; }
+
+    /* CONFIRMATION */
+    .confirmation-page {
+      max-width: 500px;
+      margin: 60px auto;
+      padding: 0 20px;
+      text-align: center;
+    }
+    .confirmation-page .check-circle {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: #3a6b6e; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; margin: 0 auto 20px;
+    }
+    .confirmation-page h2 { font-size: 22px; font-weight: 300; margin-bottom: 8px; }
+    .confirmation-page p { color: #777; font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+    .confirmation-summary {
+      background: #f9f9f9; border-radius: 6px; padding: 16px 20px;
+      text-align: left; font-size: 13px; line-height: 2; margin-bottom: 20px;
+    }
+    .deposit-notice { background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 12px 16px; font-size: 13px; color: #7a6000; margin-bottom: 20px; }
+
+    /* UTILS */
+    pb80 { padding-bottom: 80px; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER (shown on all pages) -->
+<div class="site-header">
+  <div class="logo">dalliance</div>
+</div>
+
+<!-- PAGE 1: LANDING -->
+<div class="page active" id="page1">
+  <div class="top-bar">
+    <span>📍 45 Mulga Road, Oatley, Sydney, 2223</span>
+    <span>📞 0492 954 210</span>
+  </div>
+  <div class="landing-content">
+    <div>
+      <div class="landing-actions">
+        <button class="btn-outline" style="background:#3a6b6e;color:#fff;border-color:#3a6b6e;" onclick="goTo('page2')">Book now</button>
+        <button class="btn-outline">My bookings ()</button>
+        <button class="btn-outline">Buy voucher</button>
+      </div>
+      <div class="landing-text">
+        <p>Welcome to Dalliance - An intimate Hair Studio & Urban Spa located in Oatley.</p>
+        <p>A $50 deposit is requested to secure your booking with us. This pre-payment will be put towards your service on the day of your appointment.</p>
+        <p>We kindly request a minimum of 24 hours notice to cancel all or part of your booking.</p>
+        <p>This $50 deposit is non-refundable only if you don't attend (no show) or give less than 24 hours required notice. We do understand that you may need to reschedule your appointment.</p>
+        <p>Please contact us to find a new suitable time and the $50 will then be carried forward to your new booking date.</p>
+        <p style="margin-top:20px;color:#666;font-size:13px;">As an Aveda Concept Salon, we only use Aveda Hair colour. Aveda is a naturally derived system which also has ammonia free options. Aveda colour leaves the hair feeling shiny, healthy & our salon has no nasty chemical processing aromas.</p>
+        <p style="color:#666;font-size:13px;">Our online booking times are a request only. A team member will be in contact to confirm & possibly slightly alter your booking time.</p>
+      </div>
+    </div>
+    <div>
+      <div class="hours-box">
+        <h4>Opening hours</h4>
+        <div class="hours-row"><span class="day">Sun</span><span class="closed">Closed</span></div>
+        <div class="hours-row"><span class="day">Mon</span><span class="time">9:30 am to 5:00 pm</span></div>
+        <div class="hours-row"><span class="day">Tue</span><span class="time">9:30 am to 7:30 pm</span></div>
+        <div class="hours-row"><span class="day">Wed</span><span class="time">9:30 am to 8:00 pm</span></div>
+        <div class="hours-row"><span class="day">Thu</span><span class="time">9:30 am to 5:00 pm</span></div>
+        <div class="hours-row"><span class="day">Fri</span><span class="time">9:30 am to 4:30 pm</span></div>
+        <div class="hours-row"><span class="day">Sat</span><span class="closed">Closed</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 2: CHOOSE SERVICES -->
+<div class="page" id="page2">
+  <div class="top-bar">
+    <span>📞 0492 954 210</span>
+    <span>🕐 Hours</span>
+  </div>
+  <div class="page-header">
+    <h2>Select services to book</h2>
+    <div class="service-tabs">
+      <div class="tab active" onclick="switchTab('popular')">Popular</div>
+      <div class="tab" onclick="switchTab('all')">All</div>
+      <div class="tab" id="selected-tab">Selected <span class="count" id="selected-count">0</span></div>
+    </div>
+  </div>
+  <div class="services-list" id="services-list" style="padding-bottom:80px;"></div>
+  <div class="sticky-footer">
+    <button class="btn-primary" id="btn-choose-time" onclick="goToDateTime()" disabled>Choose staff & time ›</button>
+  </div>
+</div>
+
+<!-- PAGE 3: DATE & TIME -->
+<div class="page" id="page3">
+  <div class="top-bar">
+    <span>📞 0492 954 210</span>
+    <span>🕐 Hours</span>
+  </div>
+  <div class="datetime-layout">
+    <h2 class="section-title">Choose your staff</h2>
+    <div id="staff-summary"></div>
+    <p class="drag-hint">Drag ⇅ to change service order.</p>
+
+    <h2 class="section-title">Choose a day and time</h2>
+    <div class="calendar" id="calendar"></div>
+    <div id="time-slots-section"></div>
+
+    <div class="footer-btns" style="margin-top:20px;">
+      <button class="btn-secondary" onclick="goTo('page2')">‹ Back to services</button>
+      <button class="btn-primary" id="btn-continue" onclick="goTo('page4')" disabled>Continue ›</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 4: LOGIN -->
+<div class="page" id="page4">
+  <div class="login-page">
+    <h2>Sign up to book</h2>
+    <button class="btn-facebook" onclick="completeBooking()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+      Log in with Facebook
+    </button>
+    <div class="or-divider"><span>or log in with email:</span></div>
+    <label class="login-label">Email</label>
+    <input class="login-input" type="email" placeholder=""/>
+    <label class="login-label">Password <a class="forgot" href="#">Forgot password?</a></label>
+    <input class="login-input" type="password" placeholder=""/>
+    <button class="btn-login" onclick="completeBooking()">Log in</button>
+    <div class="signup-link">New here? <a href="#">Sign up</a></div>
+  </div>
+</div>
+
+<!-- PAGE 5: CONFIRMATION -->
+<div class="page" id="page5">
+  <div class="confirmation-page">
+    <div class="check-circle">✓</div>
+    <h2>Booking Request Confirmed!</h2>
+    <p>A team member will be in contact to confirm your appointment time. Your $50 deposit secures your booking.</p>
+    <div class="confirmation-summary" id="confirmation-summary"></div>
+    <div class="deposit-notice">💳 $50 deposit charged to secure this booking. This amount will be deducted from your total on the day.</div>
+    <button class="btn-primary" style="width:100%;justify-content:center;" onclick="goTo('page1')">Back to Home</button>
+  </div>
+</div>
+
+<script>
+const SERVICES = [
+  {
+    id: 1, category: 'popular',
+    name: 'Highlights - 1/2 Head Package - Long Hair',
+    priceFrom: true, price: '$280', duration: '150',
+    contains: ['1. Highlights - Half head - Long Hair - 20-35g','Package - Toner - 30G mix','Package Blowdry - Complimentary/ Col Package'],
+    desc: 'Our half head highlights new growth refresh package includes a customised Aveda gloss tone & blowdry / style. Add a style cut to this package from $38'
+  },
+  {
+    id: 2, category: 'popular',
+    name: 'Regrowth & Blowdry - Long',
+    priceFrom: true, price: '$152', duration: '120',
+    contains: ['Regrowth in Package - 35g','Blowdry - Long $66'],
+    desc: 'Aveda Permanent or Demi + applied on your 4-6 week regrowth. Prices are all starting and can go up when more color is needed.'
+  },
+  {
+    id: 3, category: 'popular',
+    name: 'Colour & Shine Package - Medium',
+    priceFrom: true, price: '$242', duration: '150',
+    contains: ['10 foils - Colour & Shine (10-15g)','Regrowth in Package - 35g','Toner/ Gloss - 20g mix','Blowdry - Medium $58'],
+    desc: 'Give your hair colour beautiful dimension & shine with this package. 10 highlights or lowlights to accentuate your Stylecut. Add a stylecut to this package from $35.'
+  },
+  {
+    id: 4, category: 'popular',
+    name: 'Regrowth & Blowdry - Medium',
+    priceFrom: true, price: '$144', duration: '120',
+    contains: ['Regrowth in Package - 35g','Blowdry - Medium $58'],
+    desc: 'Aveda Permanent or Demi + applied on your 4-6 week regrowth. Prices are all starting and can go up when more color is needed.'
+  },
+  {
+    id: 5, category: 'popular',
+    name: 'Classic Colour Package - Long or Medium & Thick',
+    priceFrom: false, price: '$217', duration: '135',
+    contains: ['Ends Balance - Long -40g','Regrowth in Package - 35g','Blowdry - Long $66'],
+    desc: 'An all over application of Aveda colour including a permanent regrowth with a colour gloss shine balance of your ends and a Blowdry Finish. Add a stylecut to this package for $38'
+  },
+  {
+    id: 6, category: 'popular',
+    name: 'Highlights - 1/2 Head Package - Short / Med',
+    priceFrom: true, price: '$255', duration: '150',
+    contains: ['1. Highlights - Halfhead - Short / Med - 18-25g','Package - Toner - 18-25g','Package Blowdry - Complimentary/ Col Package'],
+    desc: 'Our half head highlights new growth refresh package includes a customised Aveda gloss tone & blowdry / style. Add a style cut to this package from $38'
+  },
+  {
+    id: 7, category: 'all',
+    name: 'Colour & Shine Package - Long or Med Thick',
+    priceFrom: true, price: '$253', duration: '150',
+    contains: ['10 foils - Colour & Shine (10-15g)','Regrowth in Package - 35g','Toner/ Gloss - 20g mix','Blowdry - Long $66'],
+    desc: 'Give your hair colour beautiful dimension and shine with this package. 10 highlights or lowlights to accentuate your stylecut. Add a stylecut to this package for $38'
+  },
+  {
+    id: 8, category: 'all',
+    name: 'Classic Colour Package - Medium',
+    priceFrom: false, price: '$203', duration: '135',
+    contains: ['Ends Balance - Med - 20-30g','Regrowth in Package - 35g','Blowdry - Medium $58'],
+    desc: 'An all over application of Aveda colour including a permanent regrowth with a colour gloss shine balance of your ends and a Blowdry Finish. Add a stylecut to this package for $35'
+  },
+  {
+    id: 9, category: 'all',
+    name: 'Regrowth & Towel Dry Only - $87',
+    priceFrom: false, price: '$87', duration: '90',
+    contains: ['Regrowth in Package - 35g','Shampoo / Towel Dry only'],
+    desc: 'A retouch of your full regrowth colour using your established Aveda customised formula. Includes a towel dry. *This pack is exclusive for existing salon guests/no new guests.*'
+  },
+  {
+    id: 10, category: 'all',
+    name: 'Stylecut & Finish - Long',
+    priceFrom: false, price: '$95 to $110', duration: '45',
+    contains: [],
+    desc: 'A precision stylecut and blowdry finish tailored to your hair type and desired look.'
+  },
+  {
+    id: 11, category: 'all',
+    name: 'Stylecut & Finish - Short / Med',
+    priceFrom: false, price: '$75 to $90', duration: '45',
+    contains: [],
+    desc: 'A precision stylecut and blowdry finish tailored to your hair type and desired look.'
+  },
+  {
+    id: 12, category: 'all',
+    name: 'Blowdry - Long',
+    priceFrom: false, price: '$66', duration: '45',
+    contains: [],
+    desc: 'Luxurious blowdry and style using Aveda styling products.'
+  },
+];
+
+const STYLISTS = ['(anyone)', 'Jenn', 'Kaitlyn', 'Yuki'];
+
+// Availability: available time slots by day of week — 24hr format (1=Mon...5=Fri, 0=Sun, 6=Sat closed)
+const AVAIL = {
+  0: [], 6: [], // closed
+  1: ['9:30','9:45','10:00','10:15','10:30','10:45','11:00','11:15','11:30','11:45','12:00','12:15','12:30','13:00','13:15','13:30','14:00','14:15','14:30','15:00','15:15'],
+  2: ['9:30','9:45','10:00','10:15','10:30','10:45','11:00','11:15','11:30','11:45','12:00','12:15','12:30','13:00','13:15','13:30','14:00','14:15','15:00','15:15','16:00','17:00','17:15','17:30','18:00','18:15'],
+  3: ['9:30','9:45','10:00','10:15','10:30','10:45','11:00','11:15','11:30','11:45','12:00','12:15','12:30','13:00','13:15','13:30','14:00','14:15','15:00','15:15','16:00','17:00','17:30','18:00','18:15','18:30','19:00','19:15'],
+  4: ['9:30','9:45','10:00','10:15','10:30','10:45','11:00','11:15','11:30','12:00','12:15','13:00','13:15','14:00','14:15','14:30','15:00'],
+  5: ['9:30','9:45','10:00','10:15','10:30','10:45','11:00','11:15','11:30','11:45','12:00','12:15','13:00','13:15','14:00','14:15','14:30','15:00','15:15'],
+};
+
+// Partially booked (strikethrough) slots — 24hr format
+const BOOKED = {
+  1: ['9:30','12:00','12:15','12:45','14:30'],
+  2: ['9:30','12:15','12:30','13:15','14:15','17:15'],
+  3: ['10:30','12:45','13:45','14:30','15:30','16:15','17:15','18:45','19:00'],
+  4: ['9:45','11:45','12:30','13:30','13:45','14:45'],
+  5: ['9:30','11:00','12:30','14:00'],
+};
+
+let selectedServices = [];
+let currentTab = 'popular';
+let selectedDate = null;
+let selectedTime = null;
+let calYear, calMonth;
+const fullyBookedDates = new Set(); // ISO date strings that have zero available slots
+
+function goTo(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.remove('active');
+    if ((i===0 && tab==='popular') || (i===1 && tab==='all') || (i===2 && tab==='selected')) t.classList.add('active');
+  });
+  renderServices();
+}
+
+function renderServices() {
+  const list = document.getElementById('services-list');
+  let filtered = SERVICES;
+  if (currentTab === 'popular') filtered = SERVICES.filter(s => s.category === 'popular');
+  if (currentTab === 'selected') filtered = SERVICES.filter(s => selectedServices.includes(s.id));
+
+  list.innerHTML = filtered.map(s => {
+    const sel = selectedServices.includes(s.id);
+    return `<div class="service-card ${sel?'selected':''}" id="scard-${s.id}" onclick="toggleService(${s.id})">
+      <span class="check">✓</span>
+      <div>
+        <div class="service-name">${s.name}${s.priceFrom?' (From '+s.price+')':''}</div>
+        ${s.contains.length ? `<ul class="service-contains">${s.contains.map(c=>`<li>${c}</li>`).join('')}</ul>`:''}
+        <div class="service-desc">${s.desc}</div>
+      </div>
+      <div class="service-meta">
+        <div class="service-price">${s.priceFrom?s.price:s.price}</div>
+        <div class="service-duration"><span>${s.duration}</span> min</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleService(id) {
+  const idx = selectedServices.indexOf(id);
+  if (idx === -1) selectedServices.push(id);
+  else selectedServices.splice(idx, 1);
+  document.getElementById('selected-count').textContent = selectedServices.length;
+  document.getElementById('btn-choose-time').disabled = selectedServices.length === 0;
+  renderServices();
+}
+
+function goToDateTime() {
+  if (selectedServices.length === 0) return;
+  renderStaffSummary();
+  const now = new Date();
+  calYear = now.getFullYear();
+  calMonth = now.getMonth();
+  renderCalendar();
+  goTo('page3');
+}
+
+function renderStaffSummary() {
+  const div = document.getElementById('staff-summary');
+  div.innerHTML = selectedServices.map((id, i) => {
+    const s = SERVICES.find(x => x.id === id);
+    const items = s.contains.length ? s.contains : [s.name];
+    return `<div class="summary-item">
+      <span class="order-num">⇅ ${i+1}${i===0?'st':i===1?'nd':'rd'}</span>
+      <strong>${s.name}</strong>
+      <div class="summary-sub">
+        ${items.map(item => `<div class="summary-sub-item">› ${item} with
+          <select>${STYLISTS.map(st=>`<option>${st}</option>`).join('')}</select>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderCalendar() {
+  const cal = document.getElementById('calendar');
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+
+  let html = `<div class="cal-header">
+    <button class="cal-nav" onclick="prevMonth()">‹</button>
+    <span>${monthNames[calMonth]} ${calYear}</span>
+    <button class="cal-nav" onclick="nextMonth()">›</button>
+  </div>
+  <div class="cal-grid">
+    ${['SU','MO','TU','WE','TH','FR','SA'].map(d=>`<div class="cal-day-name">${d}</div>`).join('')}
+    ${Array(firstDay).fill('<div class="cal-day empty"></div>').join('')}`;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(calYear, calMonth, d);
+    date.setHours(0,0,0,0);
+    const dow = date.getDay();
+    const isPast = date < today;
+    const isClosed = dow === 0 || dow === 6;
+    const isSelected = selectedDate && selectedDate.getTime() === date.getTime();
+    const dateISO = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isFullyBooked = !isPast && !isClosed && fullyBookedDates.has(dateISO);
+    let cls = 'cal-day';
+    if (isPast) cls += ' past';
+    else if (isClosed) cls += ' closed';
+    else if (isFullyBooked) cls += ' fully-booked';
+    if (isSelected) cls += ' selected';
+    if (date.getTime() === today.getTime()) cls += ' today';
+    const clickable = !isPast && !isClosed && !isFullyBooked;
+    const title = isFullyBooked ? 'title="Fully booked"' : '';
+    html += `<div class="${cls}" ${title} ${clickable?`onclick="selectDate(${calYear},${calMonth},${d})"`:''}>${d}</div>`;
+  }
+  html += '</div>';
+  cal.innerHTML = html;
+}
+
+function prevMonth() {
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+}
+function nextMonth() {
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+}
+
+async function selectDate(y, m, d) {
+  selectedDate = new Date(y, m, d);
+  selectedTime = null;
+  document.getElementById('btn-continue').disabled = true;
+  renderCalendar();
+  await renderTimeSlots();
+}
+
+async function renderTimeSlots() {
+  const section = document.getElementById('time-slots-section');
+  const dow = selectedDate.getDay();
+
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dateStr = `${dayNames[dow]} ${selectedDate.getDate()} ${months[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
+  const dateISO = selectedDate.toISOString().split('T')[0];
+
+  section.innerHTML = `<div id="availability-results"><p style="color:#999;font-size:13px;padding:12px 0;">Checking availability...</p></div>`;
+
+  // Fetch real-time availability from FastAPI server
+  let available = [], booked = [];
+  try {
+    const stylist = '(anyone)';
+    const resp = await fetch(`http://localhost:8000/availability?date=${dateISO}&stylist=${encodeURIComponent(stylist)}`);
+    const data = await resp.json();
+    if (data.available) available = data.available;
+    if (data.booked) booked = data.booked;
+  } catch(e) {
+    // Server not running — fall back to hardcoded data
+    available = AVAIL[dow] || [];
+    booked = BOOKED[dow] || [];
+  }
+
+  // If all slots are taken (booked > 0, available = 0) — fully booked day
+  if (available.length === 0 && booked.length > 0) {
+    fullyBookedDates.add(dateISO);
+    renderCalendar(); // update calendar to reflect fully-booked state
+    section.innerHTML = `<div id="availability-results"><div class="selected-date-title">${dateStr}</div>
+      <p style="color:#c0392b;font-size:13px;margin-top:8px;">Sorry, this day is fully booked. Please choose another date.</p>
+      <div class="time-section"><div class="time-section-title">All slots taken</div><div class="time-grid">
+        ${booked.map(t => {
+          const [h,min] = t.split(':').map(Number);
+          const dH = h > 12 ? h - 12 : h;
+          const ampm = h >= 12 ? 'pm' : 'am';
+          return `<div class="time-slot unavailable">${dH}:${min.toString().padStart(2,'0')}</div>`;
+        }).join('')}
+      </div></div>
+    </div>`;
+    return;
+  }
+
+  if (available.length === 0 && booked.length === 0) {
+    section.innerHTML = `<div id="availability-results"><div class="selected-date-title">${dateStr}</div><p style="color:#999;font-size:13px;">No availability on this day.</p></div>`;
+    return;
+  }
+
+  const allSlots = [...new Set([...available, ...booked])].sort();
+  const morning = [], afternoon = [];
+
+  allSlots.forEach(timeStr => {
+    const [h, min] = timeStr.split(':').map(Number);
+    const displayH = h > 12 ? h - 12 : h;
+    const ampm = h >= 12 ? 'pm' : 'am';
+    const displayStr = `${displayH}:${min.toString().padStart(2,'0')}`;
+    const isBooked = booked.includes(timeStr);
+    const isSelected = selectedTime === timeStr;
+    const slot = {timeStr, displayStr, ampm, isBooked, isSelected, h};
+    if (h < 12) morning.push(slot);
+    else afternoon.push(slot);
+  });
+
+  const renderSlots = (slots) => slots.map(s =>
+    `<div class="time-slot ${s.isBooked?'unavailable':'available'}${s.isSelected?' selected':''}"
+      ${!s.isBooked?`onclick="selectTime('${s.timeStr}','${s.displayStr} ${s.ampm}')"`:''}
+    >${s.displayStr}</div>`
+  ).join('');
+
+  section.innerHTML = `
+    <div id="availability-results">
+      <div class="selected-date-title">${dateStr}</div>
+      ${morning.length ? `<div class="time-section"><div class="time-section-title">Morning</div><div class="time-grid">${renderSlots(morning)}</div></div>` : ''}
+      ${afternoon.length ? `<div class="time-section"><div class="time-section-title">Afternoon</div><div class="time-grid">${renderSlots(afternoon)}</div></div>` : ''}
+    </div>
+  `;
+}
+
+function selectTime(timeStr, displayStr) {
+  selectedTime = timeStr;
+  document.getElementById('btn-continue').disabled = false;
+  renderTimeSlots();
+  window._selectedTimeDisplay = displayStr;
+}
+
+async function completeBooking() {
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const serviceNames = selectedServices.map(id => SERVICES.find(s=>s.id===id).name).join(', ');
+  const dateStr = selectedDate ? `${dayNames[selectedDate.getDay()]} ${selectedDate.getDate()} ${months[selectedDate.getMonth()]} ${selectedDate.getFullYear()}` : '—';
+  const dateISO = selectedDate ? selectedDate.toISOString().split('T')[0] : '';
+
+  // Save booking to server
+  try {
+    const resp = await fetch('http://localhost:8000/book', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        service: serviceNames,
+        stylist: '(anyone)',
+        date: dateISO,
+        time: selectedTime,
+        customer_phone: '',
+        customer_name: ''
+      })
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      if (resp.status === 409) {
+        // Slot was taken between selection and confirmation — go back and refresh
+        selectedTime = null;
+        document.getElementById('btn-continue').disabled = true;
+        goTo('page3');
+        await renderTimeSlots();
+        // Show inline conflict message inside the time slots section
+        const results = document.getElementById('availability-results');
+        if (results) {
+          const msg = document.createElement('p');
+          msg.style.cssText = 'color:#c0392b;font-size:13px;margin-bottom:12px;padding:8px 10px;background:#fdf0f0;border-radius:4px;border-left:3px solid #c0392b;';
+          msg.textContent = 'That time was just taken by someone else. Please choose another slot below.';
+          results.insertBefore(msg, results.firstChild.nextSibling);
+        }
+      } else {
+        alert(data.error || 'Booking failed. Please try again.');
+      }
+      return;
+    }
+  } catch(e) {
+    console.warn('Server not available, proceeding offline');
+  }
+
+  document.getElementById('confirmation-summary').innerHTML = `
+    <strong>Service:</strong> ${serviceNames}<br>
+    <strong>Date:</strong> ${dateStr}<br>
+    <strong>Time:</strong> ${window._selectedTimeDisplay || '—'}<br>
+    <strong>Deposit:</strong> $50 (non-refundable for no-shows)
+  `;
+  goTo('page5');
+}
+
+// Init
+renderServices();
+</script>
+</body>
+</html>
