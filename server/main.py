@@ -124,29 +124,57 @@ async def vapi_webhook(request: Request):
     message = body.get("message", {})
     call_type = message.get("type")
 
+    # Log every incoming webhook for debugging
+    print(f"[VAPI WEBHOOK] type={call_type} keys={list(message.keys())}")
+
+    # ── New Vapi format: tool-calls ──────────────────────────────────────────
+    # message.type == "tool-calls"
+    # message.toolCallList == [{"id": "...", "type": "function", "function": {"name": "...", "arguments": {...}}}]
+    if call_type == "tool-calls":
+        tool_calls = message.get("toolCallList", [])
+        results = []
+        for tool_call in tool_calls:
+            fn = tool_call.get("function", {})
+            function_name = fn.get("name")
+            parameters = fn.get("arguments", {})
+            tool_call_id = tool_call.get("id", "")
+            print(f"[VAPI] tool-call: {function_name} params={parameters}")
+            result = await _dispatch_function(function_name, parameters)
+            results.append({"toolCallId": tool_call_id, "result": result})
+        return JSONResponse({"results": results})
+
+    # ── Old Vapi format: function-call ───────────────────────────────────────
     if call_type == "function-call":
         function_name = message.get("functionCall", {}).get("name")
         parameters = message.get("functionCall", {}).get("parameters", {})
+        print(f"[VAPI] function-call: {function_name} params={parameters}")
+        result = await _dispatch_function(function_name, parameters)
+        return JSONResponse({"result": result})
 
-        if function_name == "check_availability":
-            result = await check_availability_fn(
-                service=parameters.get("service"),
-                stylist=parameters.get("stylist"),
-                date=parameters.get("date")
-            )
-            return JSONResponse({"result": result})
-
-        elif function_name == "book_appointment":
-            result = await book_appointment_fn(
-                service=parameters.get("service"),
-                stylist=parameters.get("stylist"),
-                date=parameters.get("date"),
-                time=parameters.get("time"),
-                customer_phone=parameters.get("customer_phone")
-            )
-            return JSONResponse({"result": result})
-
+    # Other event types (call-start, call-end, transcript, etc.) — just ack
     return JSONResponse({"result": "ok"})
+
+
+async def _dispatch_function(function_name: str, parameters: dict) -> str:
+    """Route a Vapi function call to the correct handler."""
+    if function_name == "check_availability":
+        return await check_availability_fn(
+            service=parameters.get("service", ""),
+            stylist=parameters.get("stylist", "(anyone)"),
+            date=parameters.get("date", "")
+        )
+    elif function_name == "book_appointment":
+        return await book_appointment_fn(
+            service=parameters.get("service", ""),
+            stylist=parameters.get("stylist", "(anyone)"),
+            date=parameters.get("date", ""),
+            time=parameters.get("time", ""),
+            customer_phone=parameters.get("customer_phone", ""),
+            customer_name=parameters.get("customer_name", "")
+        )
+    else:
+        print(f"[VAPI] Unknown function: {function_name}")
+        return f"Sorry, I don't know how to handle {function_name}."
 
 
 async def check_availability_fn(service: str, stylist: str, date: str):
