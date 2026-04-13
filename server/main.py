@@ -202,11 +202,21 @@ async def _dispatch_function(function_name: str, parameters: dict, caller_phone:
 
 async def check_availability_fn(service: str, stylist: str, date: str):
     """
-    Returns available time slots for a given date/stylist from the bookings store.
-    Playwright-based page navigation will replace this once the mock page is publicly hosted.
+    Navigates the live booking page via Playwright to read real-time availability.
+    Falls back to direct API logic if Playwright fails (e.g. during cold starts).
     """
+    from booking_scraper import get_availability
     from datetime import datetime
 
+    print(f"[PLAYWRIGHT] check_availability → service={service} stylist={stylist} date={date}")
+    try:
+        result = await get_availability(service=service, stylist=stylist or "(anyone)", date=date)
+        if result:
+            return result
+    except Exception as e:
+        print(f"[PLAYWRIGHT] failed, falling back to API logic: {e}")
+
+    # Fallback: direct availability logic
     AVAIL = {
         0: [], 6: [],
         1: ['9:30','9:45','10:00','10:15','10:30','10:45','11:00','11:15','11:30','11:45','12:00','12:15','12:30','13:00','13:15','13:30','14:00','14:15','14:30','15:00','15:15'],
@@ -215,35 +225,27 @@ async def check_availability_fn(service: str, stylist: str, date: str):
         4: ['9:30','9:45','10:00','10:15','10:30','10:45','11:00','11:15','11:30','12:00','12:15','13:00','13:15','14:00','14:15','14:30','15:00'],
         5: ['9:30','9:45','10:00','10:15','10:30','10:45','11:00','11:15','11:30','11:45','12:00','12:15','13:00','13:15','14:00','14:15','14:30','15:00','15:15'],
     }
-
     try:
         date_obj = datetime.strptime(date, '%Y-%m-%d')
         dow = date_obj.weekday() + 1
         if dow == 7:
             dow = 0
     except Exception:
-        return "Sorry, I couldn't parse that date. Could you try again with something like the 15th of April?"
-
+        return "Sorry, I couldn't parse that date. Could you try again?"
     base_slots = AVAIL.get(dow, [])
     if not base_slots:
         return f"The salon is closed on {date_obj.strftime('%A')}s. Would you like to try a weekday?"
-
     booked = get_booked_slots(date=date, stylist=stylist)
     available = [s for s in base_slots if s not in booked]
-
     if not available:
-        return f"Unfortunately there's nothing left on {date_obj.strftime('%A %d %B')}. Would you like to try another day?"
-
+        return f"Nothing left on {date_obj.strftime('%A %d %B')} unfortunately. Want to try another day?"
     def to_12hr(t):
         h, m = map(int, t.split(':'))
         period = 'am' if h < 12 else 'pm'
         h = h % 12 or 12
         return f"{h}:{m:02d}{period}" if m else f"{h}{period}"
-
-    readable = [to_12hr(s) for s in available]
-    # Offer up to 5 slots naturally
-    options = readable[:5]
-    suffix = f", and more after that" if len(readable) > 5 else ""
+    options = [to_12hr(s) for s in available][:5]
+    suffix = ", and more after that" if len(available) > 5 else ""
     return f"On {date_obj.strftime('%A %d %B')} we've got {', '.join(options)}{suffix}."
 
 
