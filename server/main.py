@@ -127,9 +127,17 @@ async def vapi_webhook(request: Request):
     # Log every incoming webhook for debugging
     print(f"[VAPI WEBHOOK] type={call_type} keys={list(message.keys())}")
 
+    # Extract caller's phone number from the Vapi payload automatically
+    # so we never need to ask the customer to say their number out loud
+    caller_phone = (
+        message.get("call", {}).get("customer", {}).get("number")
+        or body.get("call", {}).get("customer", {}).get("number")
+        or ""
+    )
+    if caller_phone:
+        print(f"[VAPI] caller phone: {caller_phone}")
+
     # ── New Vapi format: tool-calls ──────────────────────────────────────────
-    # message.type == "tool-calls"
-    # message.toolCallList == [{"id": "...", "type": "function", "function": {"name": "...", "arguments": {...}}}]
     if call_type == "tool-calls":
         tool_calls = message.get("toolCallList", [])
         results = []
@@ -139,7 +147,7 @@ async def vapi_webhook(request: Request):
             parameters = fn.get("arguments", {})
             tool_call_id = tool_call.get("id", "")
             print(f"[VAPI] tool-call: {function_name} params={parameters}")
-            result = await _dispatch_function(function_name, parameters)
+            result = await _dispatch_function(function_name, parameters, caller_phone)
             results.append({"toolCallId": tool_call_id, "result": result})
         return JSONResponse({"results": results})
 
@@ -148,14 +156,14 @@ async def vapi_webhook(request: Request):
         function_name = message.get("functionCall", {}).get("name")
         parameters = message.get("functionCall", {}).get("parameters", {})
         print(f"[VAPI] function-call: {function_name} params={parameters}")
-        result = await _dispatch_function(function_name, parameters)
+        result = await _dispatch_function(function_name, parameters, caller_phone)
         return JSONResponse({"result": result})
 
     # Other event types (call-start, call-end, transcript, etc.) — just ack
     return JSONResponse({"result": "ok"})
 
 
-async def _dispatch_function(function_name: str, parameters: dict) -> str:
+async def _dispatch_function(function_name: str, parameters: dict, caller_phone: str = "") -> str:
     """Route a Vapi function call to the correct handler."""
     if function_name == "check_availability":
         return await check_availability_fn(
@@ -164,12 +172,14 @@ async def _dispatch_function(function_name: str, parameters: dict) -> str:
             date=parameters.get("date", "")
         )
     elif function_name == "book_appointment":
+        # Use caller's phone from Vapi payload; fall back to anything the AI collected
+        phone = caller_phone or parameters.get("customer_phone", "")
         return await book_appointment_fn(
             service=parameters.get("service", ""),
             stylist=parameters.get("stylist", "(anyone)"),
             date=parameters.get("date", ""),
             time=parameters.get("time", ""),
-            customer_phone=parameters.get("customer_phone", ""),
+            customer_phone=phone,
             customer_name=parameters.get("customer_name", "")
         )
     else:
@@ -179,8 +189,8 @@ async def _dispatch_function(function_name: str, parameters: dict) -> str:
 
 async def check_availability_fn(service: str, stylist: str, date: str):
     """
-    Used by Vapi voice agent. Returns available slots as a readable string.
-    Calls the same logic as the /availability endpoint directly.
+    Returns available time slots for a given date/stylist from the bookings store.
+    Playwright-based page navigation will replace this once the mock page is publicly hosted.
     """
     from datetime import datetime
 
@@ -199,19 +209,18 @@ async def check_availability_fn(service: str, stylist: str, date: str):
         if dow == 7:
             dow = 0
     except Exception:
-        return "Sorry, I couldn't understand that date. Please say it like: April 15th."
+        return "Sorry, I couldn't parse that date. Could you try again with something like the 15th of April?"
 
     base_slots = AVAIL.get(dow, [])
     if not base_slots:
-        return f"The salon is closed on {date_obj.strftime('%A')}s. Would you like to try a different day?"
+        return f"The salon is closed on {date_obj.strftime('%A')}s. Would you like to try a weekday?"
 
     booked = get_booked_slots(date=date, stylist=stylist)
     available = [s for s in base_slots if s not in booked]
 
     if not available:
-        return f"Unfortunately there are no available slots on {date_obj.strftime('%A, %d %B')}. Would you like to check another date?"
+        return f"Unfortunately there's nothing left on {date_obj.strftime('%A %d %B')}. Would you like to try another day?"
 
-    # Convert 24hr to 12hr for natural speech
     def to_12hr(t):
         h, m = map(int, t.split(':'))
         period = 'am' if h < 12 else 'pm'
@@ -219,38 +228,36 @@ async def check_availability_fn(service: str, stylist: str, date: str):
         return f"{h}:{m:02d}{period}" if m else f"{h}{period}"
 
     readable = [to_12hr(s) for s in available]
-    return f"On {date_obj.strftime('%A, %d %B')}, we have availability at: {', '.join(readable[:8])}{'...' if len(readable) > 8 else ''}. Which time suits you best?"
+    # Offer up to 5 slots naturally
+    options = readable[:5]
+    suffix = f", and more after that" if len(readable) > 5 else ""
+    return f"On {date_obj.strftime('%A %d %B')} we've got {', '.join(options)}{suffix}."
 
 
 async def book_appointment_fn(service: str, stylist: str, date: str, time: str, customer_phone: str, customer_name: str = ''):
     """
-    Used by Vapi voice agent. Saves booking directly to JSON and sends SMS confirmation.
+    Saves the booking and sends SMS confirmation with the deposit link.
     """
     from sms import send_booking_sms
     from datetime import datetime
 
-    # Normalise time: if voice agent says "2pm" or "2:00pm", convert to 24hr for storage
-    def parse_time(t: str) -> str:
+    def parse_time_24(t: str) -> str:
         t = t.strip().lower().replace(' ', '')
-        try:
-            if 'am' in t or 'pm' in t:
-                for fmt in ('%I:%M%p', '%I%p'):
-                    try:
-                        return datetime.strptime(t, fmt).strftime('%H:%M')
-                    except ValueError:
-                        continue
-        except Exception:
-            pass
-        return t  # already 24hr
+        if 'am' in t or 'pm' in t:
+            for fmt in ('%I:%M%p', '%I%p'):
+                try:
+                    return datetime.strptime(t, fmt).strftime('%H:%M')
+                except ValueError:
+                    continue
+        return t
 
-    time_24 = parse_time(time)
+    time_24 = parse_time_24(time)
 
-    # Check slot still available
     booked = get_booked_slots(date=date, stylist=stylist)
     if time_24 in booked:
-        return f"Sorry, {time} on {date} has just been taken. Would you like to choose another time?"
+        return f"Oh no, looks like {time} on {date} just got snapped up. Want to pick another time?"
 
-    booking = save_booking(
+    save_booking(
         service=service,
         stylist=stylist if stylist else '(anyone)',
         date=date,
@@ -259,17 +266,19 @@ async def book_appointment_fn(service: str, stylist: str, date: str, time: str, 
         customer_name=customer_name
     )
 
-    booking_link = f"http://localhost:8080#confirmed"
-    if customer_phone:
-        try:
-            send_booking_sms(phone=customer_phone, booking_link=booking_link)
-        except Exception as e:
-            print(f"SMS failed: {e}")
+    booking_link = os.getenv("BOOKING_CONFIRM_URL", "https://kitomba.com/bookings/dalliancehair")
+    # Fall back to test number if no caller phone was captured
+    sms_to = customer_phone or os.getenv("TEST_PHONE", "+61498541273")
+    try:
+        send_booking_sms(phone=sms_to, booking_link=booking_link)
+    except Exception as e:
+        print(f"[SMS] Failed: {e}")
 
     try:
         date_obj = datetime.strptime(date, '%Y-%m-%d')
-        date_str = date_obj.strftime('%A, %d %B')
+        date_str = date_obj.strftime('%A %d %B')
     except Exception:
         date_str = date
 
-    return f"Perfect! Your {service} is booked for {date_str} at {time} with {stylist or 'one of our stylists'}. We've sent a confirmation to your phone. See you then!"
+    stylist_display = stylist if stylist and stylist.lower() not in ["(anyone)", "anyone"] else "one of our stylists"
+    return f"You're all locked in! {service} on {date_str} at {time} with {stylist_display}. I'm sending you a text now with a link to complete your $50 deposit — just tap it and you're good to go. See you then!"

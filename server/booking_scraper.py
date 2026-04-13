@@ -1,9 +1,18 @@
 """
-Playwright automation for the mock Kitomba booking page.
-Used for full end-to-end browser testing. The voice agent's
-check_availability_fn and book_appointment_fn in main.py use
-direct API logic instead of this scraper — this is kept for
-future integration with the real Kitomba site.
+Playwright browser automation for the Dalliance booking page.
+
+In test mode this runs against the mock page (localhost or hosted).
+In production this will run against the real Kitomba page — same logic applies
+because Kitomba has no API and the flow is identical.
+
+Flow:
+  get_availability(service, stylist, date)
+    → Opens page → selects service → navigates to Page 3 → clicks date
+    → Reads available time slots → returns readable string for voice agent
+
+  select_slot(service, stylist, date, time)
+    → Full booking navigation → stops at Page 4 (Facebook login)
+    → Returns the Page 4 URL to send to the customer via SMS
 """
 from playwright.async_api import async_playwright
 import os
@@ -13,129 +22,232 @@ MOCK_BOOKING_URL = os.getenv("MOCK_BOOKING_URL", "http://localhost:8080")
 
 async def get_availability(service: str, stylist: str, date: str) -> str:
     """
-    Opens mock booking page, navigates to service selection, picks date,
-    and reads available time slots. Returns readable string for voice agent.
+    Navigate the booking page and read available time slots for a given date.
+    Returns a natural-language string the voice agent can read to the caller.
     """
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
-        await page.goto(MOCK_BOOKING_URL)
 
-        # Click "Book Now" on landing page
-        await page.click("button.btn-primary")  # "Book Now" button on page 1
-        await page.wait_for_selector("#page2.active", timeout=5000)
+        try:
+            await page.goto(MOCK_BOOKING_URL, wait_until="domcontentloaded")
 
-        # Click matching service card (partial name match)
-        if service:
-            cards = await page.query_selector_all(".service-card")
-            for card in cards:
-                name_el = await card.query_selector(".service-name")
-                if name_el:
-                    name_text = await name_el.inner_text()
-                    if service.lower()[:20] in name_text.lower():
-                        await card.click()
-                        break
+            # Page 1 → click "Book now"
+            await page.click("button.btn-outline:has-text('Book now'), button.btn-primary")
+            await page.wait_for_selector("#page2.active", timeout=5000)
 
-        # Click "Choose staff & time"
-        await page.click("#btn-choose-time")
-        await page.wait_for_selector("#page3.active", timeout=5000)
+            # Page 2 → select matching service card
+            await _select_service(page, service)
 
-        # Select stylist if specified
-        if stylist and stylist != '(anyone)':
-            staff_cards = await page.query_selector_all(".staff-card")
-            for card in staff_cards:
-                name_el = await card.query_selector(".staff-name")
-                if name_el:
-                    name_text = await name_el.inner_text()
-                    if stylist.lower() in name_text.lower():
-                        await card.click()
-                        break
+            # Page 2 → click "Choose staff & time"
+            await page.click("#btn-choose-time")
+            await page.wait_for_selector("#page3.active", timeout=5000)
 
-        # Click the matching date on calendar
-        if date:
-            # date is YYYY-MM-DD, calendar cells have data-date attribute
-            cal_cell = await page.query_selector(f".calendar-day[data-date='{date}']")
-            if cal_cell:
-                await cal_cell.click()
-                await page.wait_for_selector("#availability-results", timeout=5000)
+            # Page 3 → select stylist if specified
+            if stylist and stylist.lower() not in ["(anyone)", "anyone", ""]:
+                await _select_stylist(page, stylist)
 
-        # Read available slot elements
-        slots = await page.query_selector_all(".time-slot.available")
-        slot_times = []
-        for slot in slots:
-            text = await slot.inner_text()
-            slot_times.append(text.strip())
+            # Page 3 → click the matching date on the calendar
+            clicked = await _click_date(page, date)
+            if not clicked:
+                await browser.close()
+                return f"Sorry, I couldn't find {date} on the calendar. It may be in a different month — would you like to try another date?"
 
-        await browser.close()
+            # Wait for time slots to render (the page fetches from the API)
+            await page.wait_for_selector("#availability-results", timeout=7000)
+            await page.wait_for_timeout(800)  # let the fetch complete
 
-        if slot_times:
-            return f"Available times: {', '.join(slot_times)}"
-        else:
-            return "No availability found for that date. Would you like to try another day?"
+            # Read available slots
+            slots = await page.query_selector_all(".time-slot.available")
+            slot_times = []
+            for slot in slots:
+                text = (await slot.inner_text()).strip()
+                if text:
+                    slot_times.append(text)
+
+            await browser.close()
+
+            if not slot_times:
+                # Check if there's a "fully booked" or "closed" message
+                results_text = await page.query_selector("#availability-results")
+                if results_text:
+                    msg = (await results_text.inner_text()).strip()
+                    if "closed" in msg.lower():
+                        return "The salon is closed on that day. Would you like to try a weekday instead?"
+                    if "fully booked" in msg.lower() or "all slots taken" in msg.lower():
+                        return "That day is fully booked. Would you like to try a different date?"
+                return "There's no availability on that date. Would you like to try another day?"
+
+            # Offer up to 5 slots in natural language
+            display = slot_times[:5]
+            if len(slot_times) > 5:
+                suffix = f" — and a few more after that"
+            else:
+                suffix = ""
+            return f"We've got availability at {', '.join(display)}{suffix}. Which time works best for you?"
+
+        except Exception as e:
+            print(f"[SCRAPER] get_availability error: {e}")
+            await browser.close()
+            return "Sorry, I had trouble checking availability right now. Let me try that again — what date were you after?"
 
 
 async def select_slot(service: str, stylist: str, date: str, time: str) -> str:
     """
-    Full booking flow: navigate to service → date → click time slot → confirm.
-    Returns booking confirmation URL.
+    Navigate the full booking flow, select the chosen slot, and stop at Page 4
+    (the Facebook login / deposit page). Returns the URL of Page 4 to send
+    to the customer via SMS so they can complete the booking themselves.
     """
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)  # headless=False to watch during testing
+        browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
-        await page.goto(MOCK_BOOKING_URL)
 
-        # Page 1 → 2
-        await page.click("button.btn-primary")
-        await page.wait_for_selector("#page2.active", timeout=5000)
+        try:
+            await page.goto(MOCK_BOOKING_URL, wait_until="domcontentloaded")
 
-        # Select service
-        if service:
-            cards = await page.query_selector_all(".service-card")
-            for card in cards:
-                name_el = await card.query_selector(".service-name")
-                if name_el:
-                    name_text = await name_el.inner_text()
-                    if service.lower()[:20] in name_text.lower():
-                        await card.click()
-                        break
+            # Page 1 → Book now
+            await page.click("button.btn-outline:has-text('Book now'), button.btn-primary")
+            await page.wait_for_selector("#page2.active", timeout=5000)
 
-        await page.click("#btn-choose-time")
-        await page.wait_for_selector("#page3.active", timeout=5000)
+            # Page 2 → select service
+            await _select_service(page, service)
 
-        # Select stylist
-        if stylist and stylist != '(anyone)':
-            staff_cards = await page.query_selector_all(".staff-card")
-            for card in staff_cards:
-                name_el = await card.query_selector(".staff-name")
-                if name_el:
-                    name_text = await name_el.inner_text()
-                    if stylist.lower() in name_text.lower():
-                        await card.click()
-                        break
+            # Page 2 → Choose staff & time
+            await page.click("#btn-choose-time")
+            await page.wait_for_selector("#page3.active", timeout=5000)
 
-        # Click date on calendar
-        if date:
-            cal_cell = await page.query_selector(f".calendar-day[data-date='{date}']")
-            if cal_cell:
-                await cal_cell.click()
-                await page.wait_for_selector("#availability-results", timeout=5000)
+            # Page 3 → select stylist
+            if stylist and stylist.lower() not in ["(anyone)", "anyone", ""]:
+                await _select_stylist(page, stylist)
 
-        # Click matching time slot
-        slots = await page.query_selector_all(".time-slot.available")
-        for slot in slots:
-            text = await slot.inner_text()
-            if time.lower().replace(' ', '') in text.lower().replace(' ', ''):
-                await slot.click()
+            # Page 3 → click date
+            clicked = await _click_date(page, date)
+            if not clicked:
+                await browser.close()
+                return ""
+
+            await page.wait_for_selector("#availability-results", timeout=7000)
+            await page.wait_for_timeout(800)
+
+            # Page 3 → click matching time slot
+            booked = await _click_time_slot(page, time)
+            if not booked:
+                await browser.close()
+                return ""
+
+            # Page 3 → Continue
+            await page.click("#btn-continue")
+            await page.wait_for_selector("#page4.active", timeout=5000)
+
+            # We are now on Page 4 (Facebook login / sign up to book)
+            # Capture the current URL — this is what gets sent to the customer
+            booking_url = page.url
+            if "#" not in booking_url:
+                booking_url = booking_url + "#page4"
+
+            await browser.close()
+            return booking_url
+
+        except Exception as e:
+            print(f"[SCRAPER] select_slot error: {e}")
+            await browser.close()
+            return ""
+
+
+# ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+async def _select_service(page, service: str):
+    """Click the service card whose name best matches the requested service."""
+    # Try "All" tab first so every service is visible
+    try:
+        await page.click(".tab:has-text('All')")
+        await page.wait_for_timeout(300)
+    except Exception:
+        pass
+
+    cards = await page.query_selector_all(".service-card")
+    best_card = None
+    service_lower = service.lower()
+
+    for card in cards:
+        name_el = await card.query_selector(".service-name")
+        if name_el:
+            name_text = (await name_el.inner_text()).lower()
+            # Exact keyword match
+            if any(word in name_text for word in service_lower.split()):
+                best_card = card
                 break
 
-        # Click Continue
-        await page.click("#btn-continue")
-        await page.wait_for_selector("#page4.active", timeout=5000)
+    if best_card:
+        await best_card.click()
+        await page.wait_for_timeout(300)
+    else:
+        # Fall back: just click the first available service card
+        if cards:
+            await cards[0].click()
+            await page.wait_for_timeout(300)
 
-        # Complete booking via Facebook login button (triggers completeBooking())
-        await page.click(".btn-facebook")
-        await page.wait_for_selector("#page5.active", timeout=8000)
 
-        confirmation_url = page.url + "#confirmed"
-        await browser.close()
-        return confirmation_url
+async def _select_stylist(page, stylist: str):
+    """Click the matching staff card on Page 3."""
+    try:
+        staff_cards = await page.query_selector_all(".staff-card")
+        for card in staff_cards:
+            name_el = await card.query_selector(".staff-name")
+            if name_el:
+                name_text = (await name_el.inner_text()).lower()
+                if stylist.lower() in name_text:
+                    await card.click()
+                    await page.wait_for_timeout(200)
+                    return
+    except Exception as e:
+        print(f"[SCRAPER] _select_stylist error: {e}")
+
+
+async def _click_date(page, date: str) -> bool:
+    """
+    Click the calendar cell for the given date (YYYY-MM-DD).
+    Navigates forward months if needed. Returns True if found and clicked.
+    """
+    for _ in range(3):  # look across up to 3 months
+        # Try to find the cell with a data-date attribute or onclick matching the date
+        try:
+            # The calendar generates onclick="selectDate(y,m,d)" — look for the date parts
+            year, month, day = date.split("-")
+            # month in JS is 0-indexed
+            js_month = int(month) - 1
+            selector = f".cal-day[onclick*='selectDate({year},{js_month},{int(day)})']"
+            cell = await page.query_selector(selector)
+            if cell:
+                cls = await cell.get_attribute("class") or ""
+                if "past" in cls or "closed" in cls or "fully-booked" in cls:
+                    return False
+                await cell.click()
+                return True
+
+            # Try next month
+            await page.click(".cal-nav:has-text('›')")
+            await page.wait_for_timeout(300)
+        except Exception as e:
+            print(f"[SCRAPER] _click_date error: {e}")
+            return False
+
+    return False
+
+
+async def _click_time_slot(page, time: str) -> bool:
+    """
+    Click the available time slot matching the requested time.
+    Handles both 12hr (2pm, 2:00pm) and 24hr (14:00) formats.
+    """
+    slots = await page.query_selector_all(".time-slot.available")
+    time_clean = time.lower().replace(" ", "").replace(":", "")
+
+    for slot in slots:
+        text = (await slot.inner_text()).strip().lower().replace(":", "").replace(" ", "")
+        if time_clean in text or text in time_clean:
+            await slot.click()
+            await page.wait_for_timeout(300)
+            return True
+
+    return False

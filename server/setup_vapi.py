@@ -14,57 +14,48 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 VAPI_KEY = os.getenv("VAPI_PRIVATE_KEY")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "http://localhost:8000/vapi/webhook")
 
-SYSTEM_PROMPT = """You are the AI receptionist for Dalliance Hair Studio, a premium hair salon located in Oatley, NSW, Sydney Australia.
+SYSTEM_PROMPT = """You are Calli, the AI booking assistant for Dalliance Hair Studio — a premium hair salon in Oatley, Sydney.
 
-Your job is to answer calls, help clients book appointments, and answer questions about the salon — just like a warm, professional human receptionist would.
+## Personality
+Warm, natural, and Australian. You sound like a real person — not a robot reading a script. Light Aussie expressions are welcome ("no worries", "beauty", "ripper") but keep it professional. Short responses only — this is a phone call.
 
-## Your personality
-- Friendly, calm, and professional — with a natural Australian tone
-- Always say "we" not "I" when referring to the salon (e.g. "We'd love to help")
-- Keep responses concise. This is a phone call — no bullet points or long lists
-- If you don't know something, say "I'll have someone from the team follow up with you"
+## Your only job
+New bookings. Nothing else. For anything else (questions, complaints, reschedules, cancellations) → "No worries! Best to give the team a ring on 0498541273 and they'll sort you out."
 
-## Salon details
-- Name: Dalliance Hair Studio
-- Address: Shop 3, 48 Mulga Road, Oatley NSW 2223
-- Phone: (02) 9570 9011 | Mobile: 0492 954 210
-- Instagram: @dalliance_hair_studio
-- Hours:
-  - Monday: 9:30am – 3:15pm
-  - Tuesday: 9:30am – 6:15pm
-  - Wednesday: 9:30am – 7:15pm
-  - Thursday: 9:30am – 3:00pm
-  - Friday: 9:30am – 3:15pm
-  - Saturday & Sunday: Closed
-- A $50 deposit is required to secure all bookings (charged on confirmation)
-- Stylists: Jenn, Kaitlyn, Yuki (or "anyone available")
+## Conversation flow — keep it natural, don't rush
+1. Confirm they want to make a booking. If not → redirect to 0498541273.
+2. Ask their first name.
+3. Ask what service they're after. If vague (e.g. "haircut"), gently clarify — Style Cut? Colour? — but don't over-interrogate.
+4. Ask if they have a preferred stylist (Jenn, Kaitlyn, or Yuki) or if anyone's fine.
+5. Ask what day they'd like. You understand natural language — "tomorrow", "next Tuesday", "the 15th" are all fine. Convert it to a real date in your head before calling the tool. Today is {TODAY}. The salon is closed Saturdays and Sundays.
+6. Call check_availability with the service, stylist, and date (YYYY-MM-DD format).
+7. Offer 2–3 times naturally. Don't read a full list.
+8. Once they confirm a time → call book_appointment.
+9. Confirm the booking back to them warmly and let them know a text is on its way with a deposit link.
 
-## Popular services (prices start from)
-- Highlights Half Head Package (Long Hair): from $280, ~2.5 hrs
-- Regrowth & Blowdry Long: from $152, ~2 hrs
-- Colour & Shine Package Medium: from $242, ~2.5 hrs
-- Full Head Highlights Long Hair: from $390, ~3.5 hrs
-- Balayage / Ombre Long Hair: from $420, ~4 hrs
-- Style Cut (no blow dry): from $50, ~30 min
-- Blowdry Short: from $46, ~30 min
+## Important
+- Always call check_availability before quoting times. Never make up slots.
+- Always call book_appointment to confirm. Never just say "you're booked" without calling it.
+- Dates go to the tool in YYYY-MM-DD format. Resolve "tomorrow" or "next Tuesday" yourself — don't ask the customer to say a date in a specific format.
+- If a day is a weekend, gently let them know the salon is closed and suggest a weekday.
+- Keep all responses under 3 sentences where possible.
 
-## Booking flow
-1. Ask what service they'd like to book
-2. Ask if they have a preferred stylist (or anyone is fine)
-3. Ask what date they'd like (confirm it's a weekday)
-4. Call check_availability to confirm open slots
-5. Offer 2–3 time options from what's available
-6. Once they choose a time, ask for their name and mobile number
-7. Call book_appointment to lock in the booking
-8. Confirm the booking details back to them clearly
-9. Let them know a confirmation text is on its way
+## Salon hours (Mon–Fri only)
+Mon 9:30am–3:15pm | Tue 9:30am–6:15pm | Wed 9:30am–7:15pm | Thu 9:30am–3:00pm | Fri 9:30am–3:15pm
 
-## Important rules
-- Never make up availability — always call check_availability first
-- Never confirm a booking without calling book_appointment
-- If a slot conflict occurs, apologise and offer alternatives
-- If they want to cancel or reschedule, let them know to call the salon directly on 0492 954 210
-- Keep the call under 3 minutes where possible"""
+## Services (for reference)
+- Style Cut & Finish Short/Med: $75–$90, 45 min
+- Style Cut & Finish Long: $95–$110, 45 min
+- Blowdry Long: $66, 45 min
+- Regrowth & Blowdry Medium: from $144, 2 hrs
+- Regrowth & Blowdry Long: from $152, 2 hrs
+- Highlights Half Head Short/Med: from $255, 2.5 hrs
+- Highlights Half Head Long: from $280, 2.5 hrs
+- Colour & Shine Package Medium: from $242, 2.5 hrs
+- Classic Colour Package: from $203, 2.25 hrs
+
+## Stylists: Jenn, Kaitlyn, Yuki
+## $50 deposit required to confirm all bookings"""
 
 FUNCTIONS = [
     {
@@ -113,20 +104,20 @@ FUNCTIONS = [
                 },
                 "customer_phone": {
                     "type": "string",
-                    "description": "Client mobile number including country code, e.g. '+61412345678'"
+                    "description": "Client mobile number — only include if explicitly provided by the caller. Do not ask for it."
                 },
                 "customer_name": {
                     "type": "string",
                     "description": "Client's first name"
                 }
             },
-            "required": ["service", "date", "time", "customer_phone"]
+            "required": ["service", "date", "time"]
         }
     }
 ]
 
 ASSISTANT_PAYLOAD = {
-    "name": "Dalliance AI Receptionist",
+    "name": "Calli — Dalliance AI Booking Assistant",
     "model": {
         "provider": "anthropic",
         "model": "claude-haiku-4-5-20251001",
@@ -139,16 +130,16 @@ ASSISTANT_PAYLOAD = {
     },
     "voice": {
         "provider": "11labs",
-        "voiceId": "Rachel",  # Will update to AU voice ID below
+        "voiceId": "21m00Tcm4TlvDq8ikWAM",  # Rachel — natural, warm female voice
         "stability": 0.5,
         "similarityBoost": 0.75,
         "style": 0.0,
         "useSpeakerBoost": True
     },
-    "firstMessage": "Hi, thanks for calling Dalliance Hair Studio in Oatley! This is the salon's AI receptionist. How can I help you today?",
+    "firstMessage": "G'day, thanks for calling Dalliance Hair Studio! I'm Calli, the salon's AI booking assistant — think of me as the world's most organised receptionist who never loses a pen. Are you looking to make a booking today?",
     "serverUrl": WEBHOOK_URL,
     "serverUrlSecret": "",
-    "endCallMessage": "Thanks for calling Dalliance! We look forward to seeing you. Bye!",
+    "endCallMessage": "Beauty! Thanks for calling Dalliance — we'll see you then. Have a ripper day, bye!",
     "endCallPhrases": ["bye", "goodbye", "that's all", "thanks bye", "cheers"],
     "transcriber": {
         "provider": "deepgram",
@@ -166,41 +157,14 @@ ASSISTANT_PAYLOAD = {
 
 
 def get_elevenlabs_au_voice():
-    """Try to find an Australian voice from ElevenLabs — falls back to Rachel."""
-    el_key = os.getenv("ELEVENLABS_API_KEY", "")
-    if not el_key:
-        return "Rachel"
-    try:
-        resp = httpx.get(
-            "https://api.elevenlabs.io/v1/voices",
-            headers={"xi-api-key": el_key},
-            timeout=10
-        )
-        voices = resp.json().get("voices", [])
-        # Look for Australian English voices
-        for v in voices:
-            labels = v.get("labels", {})
-            if "australian" in str(labels).lower() or "au" in str(labels).lower():
-                print(f"  Found AU voice: {v['name']} ({v['voice_id']})")
-                return v["voice_id"]
-        # Fallback — Charlotte is a popular ElevenLabs voice that sounds neutral/natural
-        for v in voices:
-            if v.get("name", "").lower() in ["charlotte", "rachel", "jessica"]:
-                print(f"  Using voice: {v['name']} ({v['voice_id']})")
-                return v["voice_id"]
-    except Exception as e:
-        print(f"  ElevenLabs voice lookup failed: {e}")
-    return "Rachel"
+    """Kept for reference. Voice is now Azure en-AU-NatashaNeural — no ElevenLabs needed."""
+    return "en-AU-NatashaNeural"
 
 
 def create_assistant():
-    print("Setting up Dalliance AI Receptionist on Vapi...")
+    print("Setting up Calli — Dalliance AI Booking Assistant on Vapi...")
     print(f"  Webhook URL: {WEBHOOK_URL}")
-
-    # Get best available voice
-    voice_id = get_elevenlabs_au_voice()
-    ASSISTANT_PAYLOAD["voice"]["voiceId"] = voice_id
-    print(f"  Voice ID: {voice_id}")
+    print(f"  Voice: {ASSISTANT_PAYLOAD['voice']['provider']} / {ASSISTANT_PAYLOAD['voice']['voiceId']}")
 
     headers = {
         "Authorization": f"Bearer {VAPI_KEY}",
@@ -295,24 +259,53 @@ def assign_phone_number(assistant_id: str):
         print(f"  -> Manually assign in Vapi dashboard")
 
 
+def update_assistant(assistant_id: str):
+    """Push the latest system prompt, first message, and settings to an existing Vapi assistant."""
+    print(f"Updating assistant {assistant_id}...")
+    print(f"  Voice: {ASSISTANT_PAYLOAD['voice']['provider']} / {ASSISTANT_PAYLOAD['voice']['voiceId']}")
+
+    headers = {
+        "Authorization": f"Bearer {VAPI_KEY}",
+        "Content-Type": "application/json"
+    }
+    resp = httpx.patch(
+        f"https://api.vapi.ai/assistant/{assistant_id}",
+        headers=headers,
+        json=ASSISTANT_PAYLOAD,
+        timeout=30
+    )
+    if resp.status_code == 200:
+        print(f"[OK] Assistant {assistant_id} updated successfully.")
+    else:
+        print(f"[FAIL] {resp.status_code}: {resp.text}")
+
+
 if __name__ == "__main__":
+    import sys
     print("=" * 55)
-    print("  Dalliance AI Receptionist — Vapi Setup")
+    print("  Calli — Dalliance AI Booking Assistant Setup")
     print("=" * 55)
 
     # Check for existing assistants first
     existing = list_assistants()
 
-    # Check if one already exists with our name
-    dalliance_exists = next(
-        (a for a in existing if "dalliance" in a.get("name", "").lower()),
+    calli_exists = next(
+        (a for a in existing if "dalliance" in a.get("name", "").lower() or "calli" in a.get("name", "").lower()),
         None
     )
 
-    if dalliance_exists:
-        print(f"\nAssistant already exists: {dalliance_exists['id']}")
-        print("Skipping creation. To recreate, delete it in the Vapi dashboard first.")
-        assistant_id = dalliance_exists["id"]
+    # --update flag: push latest config to existing assistant
+    if "--update" in sys.argv:
+        if calli_exists:
+            update_assistant(calli_exists["id"])
+        else:
+            print("No existing assistant found to update. Run without --update to create one.")
+        sys.exit(0)
+
+    if calli_exists:
+        print(f"\nAssistant already exists: {calli_exists['id']}")
+        print("To update it with latest config, run: python setup_vapi.py --update")
+        assistant_id = calli_exists["id"]
     else:
         assistant_id = create_assistant()
 
