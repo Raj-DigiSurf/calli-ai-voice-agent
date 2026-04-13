@@ -27,7 +27,7 @@ New bookings. Nothing else. For anything else (questions, complaints, reschedule
 2. Ask their first name.
 3. Ask what service they're after. If vague (e.g. "haircut"), gently clarify — Style Cut? Colour? — but don't over-interrogate.
 4. Ask if they have a preferred stylist (Jenn, Kaitlyn, or Yuki) or if anyone's fine.
-5. Ask what day they'd like. You understand natural language — "tomorrow", "next Tuesday", "the 15th" are all fine. Convert it to a real date in your head before calling the tool. Today is {TODAY}. The salon is closed Saturdays and Sundays.
+5. Ask what day they'd like. You understand natural language — "tomorrow", "this Wednesday", "the 15th" are all fine. But before calling check_availability, always call get_current_date first so you know today's actual date and can calculate the correct calendar date. The salon is closed Saturdays and Sundays.
 6. Call check_availability with the service, stylist, and date (YYYY-MM-DD format).
 7. Offer 2–3 times naturally. Don't read a full list.
 8. Once they confirm a time → call book_appointment.
@@ -58,6 +58,15 @@ Mon 9:30am–3:15pm | Tue 9:30am–6:15pm | Wed 9:30am–7:15pm | Thu 9:30am–3
 ## $50 deposit required to confirm all bookings"""
 
 FUNCTIONS = [
+    {
+        "name": "get_current_date",
+        "description": "Returns today's date and day of the week. Always call this first whenever the caller uses relative dates like 'today', 'tomorrow', 'this Wednesday', 'next Tuesday', etc. so you can calculate the correct calendar date before calling check_availability.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    },
     {
         "name": "check_availability",
         "description": "Check available appointment slots at Dalliance Hair Studio for a given service, stylist preference, and date. Always call this before offering times to the caller.",

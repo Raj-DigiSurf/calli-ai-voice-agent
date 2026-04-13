@@ -116,6 +116,14 @@ async def list_bookings():
     return {"bookings": get_all_bookings()}
 
 
+@app.delete("/bookings/clear")
+async def clear_bookings():
+    """Clear all test bookings. Test environment only."""
+    from bookings_store import _save
+    _save([])
+    return {"cleared": True}
+
+
 # ─── VAPI WEBHOOK (voice agent function calls) ────────────────────────────────
 
 @app.post("/vapi/webhook")
@@ -165,6 +173,11 @@ async def vapi_webhook(request: Request):
 
 async def _dispatch_function(function_name: str, parameters: dict, caller_phone: str = "") -> str:
     """Route a Vapi function call to the correct handler."""
+    if function_name == "get_current_date":
+        from datetime import datetime
+        now = datetime.now()
+        return f"Today is {now.strftime('%A, %d %B %Y')}. In YYYY-MM-DD format: {now.strftime('%Y-%m-%d')}."
+
     if function_name == "check_availability":
         return await check_availability_fn(
             service=parameters.get("service", ""),
