@@ -280,8 +280,17 @@ async def book_appointment_fn(service: str, stylist: str, date: str, time: str, 
     )
 
     booking_link = os.getenv("BOOKING_CONFIRM_URL", "https://kitomba.com/bookings/dalliancehair")
-    # Fall back to test number if no caller phone was captured
-    sms_to = customer_phone or os.getenv("TEST_PHONE", "+61498541273")
+    # Normalise AU mobile numbers: 04xx → +614xx
+    def normalise_phone(p: str) -> str:
+        p = p.strip().replace(" ", "").replace("-", "")
+        if p.startswith("04") and len(p) == 10:
+            return "+61" + p[1:]
+        if p.startswith("61") and not p.startswith("+"):
+            return "+" + p
+        return p
+
+    raw_phone = customer_phone or os.getenv("TEST_PHONE", "+61498541273")
+    sms_to = normalise_phone(raw_phone)
     try:
         send_booking_sms(phone=sms_to, booking_link=booking_link)
     except Exception as e:
