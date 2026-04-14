@@ -124,7 +124,7 @@ async def get_bookings(business_id: str = "default", date: str = None,
                        status: str = None) -> list[dict]:
     """Fetch bookings, optionally filtered by date and/or status."""
     if _USE_SUPABASE:
-        q = _sb.table("bookings").select("*, customers(name, phone)").eq("business_id", business_id)
+        q = _sb.table("bookings").select("*").eq("business_id", business_id)
         if date:
             q = q.eq("date", date)
         if status:
