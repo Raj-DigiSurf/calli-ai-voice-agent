@@ -1,5 +1,5 @@
 # Microsoft's official Playwright image — Chromium pre-installed, no build-time download
-FROM mcr.microsoft.com/playwright/python:v1.49.0-jammy
+FROM mcr.microsoft.com/playwright/python:v1.58.0-jammy
 
 WORKDIR /app
 
