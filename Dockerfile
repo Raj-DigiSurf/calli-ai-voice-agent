@@ -7,8 +7,9 @@ WORKDIR /app
 COPY server/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy server code
+# Copy server code and dashboard
 COPY server/ ./server/
+COPY dashboard/ ./dashboard/
 
 # Playwright browsers are already in the base image
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
