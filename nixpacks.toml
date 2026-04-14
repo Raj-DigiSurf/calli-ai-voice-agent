@@ -1,8 +1,7 @@
 [phases.install]
 cmds = [
   "pip install -r server/requirements.txt",
-  "playwright install-deps chromium",
-  "PLAYWRIGHT_BROWSERS_PATH=/app/.playwright playwright install chromium",
+  "PLAYWRIGHT_BROWSERS_PATH=/app/.playwright playwright install --with-deps chromium",
 ]
 
 [start]

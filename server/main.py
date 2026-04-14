@@ -23,6 +23,39 @@ async def health():
     return {"status": "ok", "service": "digisurf-voice-agent"}
 
 
+@app.get("/debug/playwright")
+async def debug_playwright():
+    """Check if Playwright + Chromium are installed and working."""
+    import subprocess, os
+    browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH", "not set")
+    try:
+        result = subprocess.run(
+            ["playwright", "install", "--dry-run", "chromium"],
+            capture_output=True, text=True, timeout=10
+        )
+        dry_run = result.stdout + result.stderr
+    except Exception as e:
+        dry_run = str(e)
+    try:
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            await page.goto("about:blank")
+            await browser.close()
+        launch_ok = True
+        launch_err = None
+    except Exception as e:
+        launch_ok = False
+        launch_err = str(e)
+    return {
+        "PLAYWRIGHT_BROWSERS_PATH": browsers_path,
+        "chromium_launch": "OK" if launch_ok else "FAILED",
+        "error": launch_err,
+        "dry_run": dry_run[:500]
+    }
+
+
 # ─── BOOKING ENDPOINTS (used by mock page + Playwright) ───────────────────────
 
 @app.get("/availability")
