@@ -1,26 +1,8 @@
-[phases.setup]
-# System libraries required by Playwright's Chromium
-aptPkgs = [
-  "chromium",
-  "chromium-driver",
-  "libnss3",
-  "libatk1.0-0",
-  "libatk-bridge2.0-0",
-  "libcups2",
-  "libdrm2",
-  "libxkbcommon0",
-  "libxcomposite1",
-  "libxdamage1",
-  "libxfixes3",
-  "libxrandr2",
-  "libgbm1",
-  "libasound2",
-]
-
 [phases.install]
 cmds = [
   "pip install -r server/requirements.txt",
-  "playwright install chromium",
+  "playwright install-deps chromium",
+  "PLAYWRIGHT_BROWSERS_PATH=/app/.playwright playwright install chromium",
 ]
 
 [start]
