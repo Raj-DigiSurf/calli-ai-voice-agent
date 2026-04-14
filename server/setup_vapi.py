@@ -19,28 +19,48 @@ SYSTEM_PROMPT = """You are Calli, the AI booking assistant for Dalliance Hair St
 ## Personality
 Warm, natural, and Australian. You sound like a real person — not a robot reading a script. Light Aussie expressions are welcome ("no worries", "beauty", "ripper") but keep it professional. Short responses only — this is a phone call.
 
-## Your only job
-New bookings. Nothing else. For anything else (questions, complaints, reschedules, cancellations) → "No worries! Best to give the team a ring on 0498541273 and they'll sort you out."
+## What you can do
+- Make new bookings
+- Reschedule an existing booking
+- Cancel an existing booking
+- Add to the waitlist when nothing's available
+- Take a callback request if the caller needs to speak to someone
 
-## Conversation flow — keep it natural, don't rush
-1. Confirm they want to make a booking. If not → redirect to 0498541273.
-2. Ask their first name.
-3. Ask what service they're after. If vague (e.g. "haircut"), gently clarify — Style Cut? Colour? — but don't over-interrogate.
-4. Ask if they have a preferred stylist (Jenn, Kaitlyn, or Yuki) or if anyone's fine.
-5. Ask what day they'd like. You understand natural language — "tomorrow", "this Wednesday", "the 15th" are all fine. But before calling check_availability, always call get_current_date first so you know today's actual date and can calculate the correct calendar date. The salon is closed Saturdays and Sundays.
-6. Call check_availability with the service, stylist, and date (YYYY-MM-DD format).
-7. Offer 2–3 times naturally. Don't read a full list.
-8. Once they confirm a time → call book_appointment.
-9. Confirm the booking back to them warmly and let them know a text is on its way with a deposit link.
+For anything else (questions, complaints, pricing queries) → "No worries! Best to give the team a ring on 0498541273 and they'll sort you out."
 
-## Important
+## On every call — first step
+Always call lookup_customer at the very start of the call. It tells you if they're a returning customer and shows any upcoming bookings. Greet returning customers by name.
+
+## New booking flow
+1. Ask their first name (skip if lookup_customer returned their name).
+2. Ask what service they're after. If vague, gently clarify — Style Cut? Colour? — but don't over-interrogate.
+3. Ask if they have a preferred stylist (Jenn, Kaitlyn, or Yuki) or if anyone's fine.
+4. Ask what day they'd like. Call get_current_date first to know today's date, then resolve "tomorrow", "this Wednesday", etc. yourself.
+5. Call check_availability with service, stylist, and date (YYYY-MM-DD).
+6. Offer 2–3 times naturally.
+7. Once they confirm a time → call book_appointment.
+8. Confirm warmly and tell them a deposit text is on its way.
+
+## Reschedule flow
+If caller wants to reschedule: ask for the new preferred date and time, then call reschedule_appointment. You don't need to ask for the old booking — we find it by their phone number automatically.
+
+## Cancel flow
+If caller wants to cancel: briefly confirm they're sure, then call cancel_appointment. We find the booking by their phone number.
+
+## Waitlist
+If nothing's available on their preferred day: offer the waitlist. Call add_to_waitlist with their name, service, and preferred date.
+
+## Callback
+If the caller needs to speak to a human (complex request, complaint, pricing question): call log_callback_request and reassure them someone will call back shortly.
+
+## Rules
 - Always call check_availability before quoting times. Never make up slots.
-- Always call book_appointment to confirm. Never just say "you're booked" without calling it.
-- Dates go to the tool in YYYY-MM-DD format. Call get_current_date first, then resolve relative dates yourself.
-- If a day is a weekend, gently let them know the salon is closed and suggest a weekday.
+- Always call book_appointment / reschedule_appointment / cancel_appointment — never just say it's done without calling the tool.
+- Dates in YYYY-MM-DD format. Call get_current_date first for relative dates.
+- If a day is a weekend, the salon is closed — suggest a weekday.
 - Keep all responses under 2-3 sentences.
-- NEVER ask for a phone number. The system captures it automatically. Do not mention it.
-- NEVER use markdown formatting — no bold, no asterisks, no bullet points. Plain spoken words only. This is a voice call.
+- NEVER ask for a phone number — the system captures it automatically.
+- NEVER use markdown formatting — no bold, no asterisks. Plain spoken words only.
 
 ## Salon hours (Mon–Fri only)
 Mon 9:30am–3:15pm | Tue 9:30am–6:15pm | Wed 9:30am–7:15pm | Thu 9:30am–3:00pm | Fri 9:30am–3:15pm
@@ -61,68 +81,90 @@ Mon 9:30am–3:15pm | Tue 9:30am–6:15pm | Wed 9:30am–7:15pm | Thu 9:30am–3
 
 FUNCTIONS = [
     {
+        "name": "lookup_customer",
+        "description": "Look up the caller by their phone number. Call this at the very start of every call. Returns 'new_customer' or 'returning_customer|<name>|<upcoming booking details>'. Use the result to greet returning customers by name and skip asking for their name.",
+        "parameters": {"type": "object", "properties": {}, "required": []}
+    },
+    {
         "name": "get_current_date",
-        "description": "Returns today's date and day of the week. Always call this first whenever the caller uses relative dates like 'today', 'tomorrow', 'this Wednesday', 'next Tuesday', etc. so you can calculate the correct calendar date before calling check_availability.",
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": []
-        }
+        "description": "Returns today's date and day of the week. Always call this before resolving relative dates like 'today', 'tomorrow', 'this Wednesday', 'next Tuesday' — so you can calculate the correct YYYY-MM-DD before calling check_availability.",
+        "parameters": {"type": "object", "properties": {}, "required": []}
     },
     {
         "name": "check_availability",
-        "description": "Check available appointment slots at Dalliance Hair Studio for a given service, stylist preference, and date. Always call this before offering times to the caller.",
+        "description": "Check available appointment slots at Dalliance Hair Studio for a given service, stylist preference, and date. Always call this before quoting times.",
         "parameters": {
             "type": "object",
             "properties": {
-                "service": {
-                    "type": "string",
-                    "description": "The service the client wants, e.g. 'Highlights Half Head' or 'Style Cut'"
-                },
-                "stylist": {
-                    "type": "string",
-                    "description": "Preferred stylist name or '(anyone)' if no preference"
-                },
-                "date": {
-                    "type": "string",
-                    "description": "Date in YYYY-MM-DD format, e.g. '2026-04-15'"
-                }
+                "service": {"type": "string", "description": "Service name, e.g. 'Highlights Half Head' or 'Style Cut'"},
+                "stylist": {"type": "string", "description": "Preferred stylist name or '(anyone)' if no preference"},
+                "date": {"type": "string", "description": "Date in YYYY-MM-DD format"}
             },
             "required": ["date"]
         }
     },
     {
         "name": "book_appointment",
-        "description": "Book an appointment at Dalliance Hair Studio. Call this only after the caller has confirmed a specific time slot. Sends SMS confirmation to the client.",
+        "description": "Book an appointment. Call only after the caller has confirmed a specific time slot. Saves the booking and sends SMS deposit link.",
         "parameters": {
             "type": "object",
             "properties": {
-                "service": {
-                    "type": "string",
-                    "description": "The service being booked"
-                },
-                "stylist": {
-                    "type": "string",
-                    "description": "Stylist name or '(anyone)'"
-                },
-                "date": {
-                    "type": "string",
-                    "description": "Date in YYYY-MM-DD format"
-                },
-                "time": {
-                    "type": "string",
-                    "description": "Time in 24hr format, e.g. '10:30' or '14:00'"
-                },
-                "customer_phone": {
-                    "type": "string",
-                    "description": "Client mobile number — only include if explicitly provided by the caller. Do not ask for it."
-                },
-                "customer_name": {
-                    "type": "string",
-                    "description": "Client's first name"
-                }
+                "service": {"type": "string", "description": "Service being booked"},
+                "stylist": {"type": "string", "description": "Stylist name or '(anyone)'"},
+                "date": {"type": "string", "description": "Date in YYYY-MM-DD format"},
+                "time": {"type": "string", "description": "Time in 24hr format, e.g. '10:30'"},
+                "customer_name": {"type": "string", "description": "Client's first name"}
             },
             "required": ["service", "date", "time"]
+        }
+    },
+    {
+        "name": "reschedule_appointment",
+        "description": "Reschedule the caller's existing upcoming booking to a new date and time. The existing booking is found automatically by their phone number — no need to ask for it.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "new_date": {"type": "string", "description": "New date in YYYY-MM-DD format"},
+                "new_time": {"type": "string", "description": "New time in 24hr format, e.g. '14:00'"}
+            },
+            "required": ["new_date", "new_time"]
+        }
+    },
+    {
+        "name": "cancel_appointment",
+        "description": "Cancel the caller's upcoming booking. Found automatically by their phone number.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "reason": {"type": "string", "description": "Reason for cancellation, e.g. 'customer request' or 'unwell'"}
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "add_to_waitlist",
+        "description": "Add the caller to the waitlist when no slots are available on their preferred day. They'll be texted if a spot opens up.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "customer_name": {"type": "string", "description": "Client's first name"},
+                "service": {"type": "string", "description": "Service they want"},
+                "date": {"type": "string", "description": "Preferred date in YYYY-MM-DD format"},
+                "time_preference": {"type": "string", "description": "morning, afternoon, or any", "enum": ["morning", "afternoon", "any"]}
+            },
+            "required": ["service"]
+        }
+    },
+    {
+        "name": "log_callback_request",
+        "description": "Log a callback request when the caller needs to speak to a human — complex questions, complaints, or anything Calli can't handle. Notifies the salon team to call them back.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "customer_name": {"type": "string", "description": "Client's name if known"},
+                "reason": {"type": "string", "description": "Brief reason for the callback request"}
+            },
+            "required": []
         }
     }
 ]
