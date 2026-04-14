@@ -5,3 +5,5 @@ twilio
 anthropic
 python-dotenv
 httpx
+supabase
+aiofiles

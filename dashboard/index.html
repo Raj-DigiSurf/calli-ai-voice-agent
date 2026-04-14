@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calli Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    background: #f4f6f9;
+    color: #1a1a2e;
+    font-size: 14px;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: #1a1040;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .header .brand {
+    font-size: 18px;
+    font-weight: 700;
+    color: #c084fc;
+    letter-spacing: -0.3px;
+  }
+  .header .biz-name {
+    font-size: 13px;
+    color: #94a3b8;
+  }
+  .header .status-pill {
+    background: #16a34a;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+  }
+
+  /* ── Layout ── */
+  .container { max-width: 1000px; margin: 0 auto; padding: 24px 20px; }
+
+  /* ── Date strip ── */
+  .date-strip {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .date-btn {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    color: #475569;
+    transition: all 0.15s;
+    text-align: center;
+    min-width: 72px;
+  }
+  .date-btn:hover { border-color: #8b5cf6; color: #8b5cf6; }
+  .date-btn.active { background: #8b5cf6; color: #fff; border-color: #8b5cf6; }
+  .date-btn .day-label { font-weight: 700; font-size: 12px; display: block; }
+  .date-btn .day-num { font-size: 18px; font-weight: 800; display: block; line-height: 1.1; }
+
+  /* ── Stats bar ── */
+  .stats { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+  .stat-card {
+    flex: 1; min-width: 120px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-card .num { font-size: 28px; font-weight: 800; color: #8b5cf6; }
+  .stat-card .lbl { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+  /* ── Section headings ── */
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #64748b;
+    margin-bottom: 10px;
+    margin-top: 28px;
+  }
+  .section-title:first-of-type { margin-top: 0; }
+
+  /* ── Booking cards ── */
+  .booking-list { display: flex; flex-direction: column; gap: 8px; }
+  .booking-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .booking-card.cancelled { opacity: 0.45; }
+  .booking-card .time-badge {
+    background: #f1f5f9;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 15px;
+    font-weight: 800;
+    color: #1a1040;
+    min-width: 62px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .booking-card .info { flex: 1; }
+  .booking-card .customer { font-weight: 700; font-size: 14px; color: #1a1a2e; }
+  .booking-card .service-line { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .booking-card .pill {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .pill.confirmed  { background: #dcfce7; color: #15803d; }
+  .pill.cancelled  { background: #fee2e2; color: #b91c1c; }
+  .pill.completed  { background: #e0f2fe; color: #0369a1; }
+  .pill.voice      { background: #f3e8ff; color: #7c3aed; }
+
+  .empty { color: #94a3b8; font-size: 13px; padding: 24px 0; text-align: center; }
+
+  /* ── Callbacks / waitlist ── */
+  .alert-list { display: flex; flex-direction: column; gap: 6px; }
+  .alert-card {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+  .alert-card .alert-name { font-weight: 700; }
+  .alert-card .alert-meta { color: #92400e; font-size: 12px; margin-top: 2px; }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    padding: 32px 0 16px;
+    font-size: 12px;
+    color: #94a3b8;
+  }
+  .footer a { color: #8b5cf6; text-decoration: none; }
+
+  .spinner {
+    display: inline-block;
+    width: 18px; height: 18px;
+    border: 2px solid #e2e8f0;
+    border-top-color: #8b5cf6;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="brand">Calli</div>
+    <div class="biz-name" id="biz-name">Loading...</div>
+  </div>
+  <div class="status-pill">Live</div>
+</div>
+
+<div class="container">
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="num" id="stat-today">—</div>
+      <div class="lbl">Today</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" id="stat-week">—</div>
+      <div class="lbl">This week</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" id="stat-callbacks">—</div>
+      <div class="lbl">Callbacks</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" id="stat-waitlist">—</div>
+      <div class="lbl">Waitlist</div>
+    </div>
+  </div>
+
+  <!-- Date strip -->
+  <div class="date-strip" id="date-strip"></div>
+
+  <!-- Bookings for selected day -->
+  <div class="section-title" id="day-heading">Today's Bookings</div>
+  <div class="booking-list" id="bookings-list">
+    <div class="empty"><span class="spinner"></span> Loading bookings...</div>
+  </div>
+
+  <!-- Pending callbacks -->
+  <div id="callbacks-section" style="display:none">
+    <div class="section-title">Pending Callbacks</div>
+    <div class="alert-list" id="callbacks-list"></div>
+  </div>
+
+  <!-- Waitlist -->
+  <div id="waitlist-section" style="display:none">
+    <div class="section-title">Waitlist</div>
+    <div class="alert-list" id="waitlist-list"></div>
+  </div>
+
+</div>
+
+<div class="footer">
+  Powered by <a href="https://github.com/Raj-DigiSurf/calli-ai-voice-agent" target="_blank">Calli AI</a>
+  &nbsp;·&nbsp; DigiSurf Australia
+</div>
+
+<script>
+// ── Config ───────────────────────────────────────────────────────────────────
+const API = window.location.hostname === 'localhost'
+  ? 'http://localhost:8000'
+  : 'https://melodious-acceptance-production-a1b8.up.railway.app';
+
+const BIZ_ID = new URLSearchParams(window.location.search).get('biz') || 'default';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function fmtTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  const period = h < 12 ? 'am' : 'pm';
+  const h12 = h % 12 || 12;
+  return m ? `${h12}:${String(m).padStart(2,'0')}${period}` : `${h12}${period}`;
+}
+
+function fmtDate(d) {
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function isoDate(d) {
+  return d.toISOString().split('T')[0];
+}
+
+// ── Date strip ───────────────────────────────────────────────────────────────
+let selectedDate = isoDate(new Date());
+
+function buildDateStrip() {
+  const strip = document.getElementById('date-strip');
+  strip.innerHTML = '';
+  const today = new Date();
+  for (let i = 0; i < 10; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const iso = isoDate(d);
+    const btn = document.createElement('button');
+    btn.className = 'date-btn' + (iso === selectedDate ? ' active' : '');
+    btn.innerHTML = `
+      <span class="day-label">${d.toLocaleDateString('en-AU',{weekday:'short'})}</span>
+      <span class="day-num">${d.getDate()}</span>
+    `;
+    btn.onclick = () => {
+      selectedDate = iso;
+      document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadBookings(iso);
+    };
+    strip.appendChild(btn);
+  }
+}
+
+// ── Load bookings ────────────────────────────────────────────────────────────
+async function loadBookings(date) {
+  const heading = document.getElementById('day-heading');
+  const list = document.getElementById('bookings-list');
+
+  const label = date === isoDate(new Date()) ? "Today's Bookings"
+              : fmtDate(date) + ' Bookings';
+  heading.textContent = label;
+  list.innerHTML = '<div class="empty"><span class="spinner"></span> Loading...</div>';
+
+  try {
+    const res = await fetch(`${API}/bookings?business_id=${BIZ_ID}&date=${date}`);
+    const data = await res.json();
+    const bookings = data.bookings || [];
+
+    document.getElementById('stat-today').textContent =
+      bookings.filter(b => b.status === 'confirmed').length;
+
+    if (!bookings.length) {
+      list.innerHTML = '<div class="empty">No bookings for this day.</div>';
+      return;
+    }
+
+    list.innerHTML = bookings.map(b => `
+      <div class="booking-card ${b.status === 'cancelled' ? 'cancelled' : ''}">
+        <div class="time-badge">${fmtTime(b.time)}</div>
+        <div class="info">
+          <div class="customer">${b.customer_name || 'Unknown'}</div>
+          <div class="service-line">
+            ${b.service}
+            ${b.staff_name && b.staff_name !== '(anyone)' ? '· ' + b.staff_name : ''}
+            · ${b.duration_mins}min
+            ${b.customer_phone ? '· ' + b.customer_phone : ''}
+          </div>
+        </div>
+        <span class="pill ${b.status}">${b.status}</span>
+        ${b.source === 'voice' ? '<span class="pill voice">Voice</span>' : ''}
+      </div>
+    `).join('');
+  } catch (e) {
+    list.innerHTML = `<div class="empty">Failed to load — ${e.message}</div>`;
+  }
+}
+
+// ── Load callbacks + waitlist ─────────────────────────────────────────────────
+async function loadAlerts() {
+  // Callbacks
+  try {
+    const res = await fetch(`${API}/bookings?business_id=${BIZ_ID}`);
+    // Placeholder — will fetch from /callbacks endpoint when added
+  } catch {}
+}
+
+// ── Load weekly count ─────────────────────────────────────────────────────────
+async function loadWeekStats() {
+  const today = new Date();
+  let total = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    try {
+      const res = await fetch(`${API}/bookings?business_id=${BIZ_ID}&date=${isoDate(d)}`);
+      const data = await res.json();
+      total += (data.bookings || []).filter(b => b.status === 'confirmed').length;
+    } catch {}
+  }
+  document.getElementById('stat-week').textContent = total;
+}
+
+// ── Business name ─────────────────────────────────────────────────────────────
+document.getElementById('biz-name').textContent =
+  BIZ_ID === 'default' ? 'Dalliance Hair Studio' : BIZ_ID;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildDateStrip();
+loadBookings(selectedDate);
+loadWeekStats();
+</script>
+</body>
+</html>
