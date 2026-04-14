@@ -683,7 +683,7 @@ async function renderTimeSlots() {
   const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const dateStr = `${dayNames[dow]} ${selectedDate.getDate()} ${months[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
-  const dateISO = selectedDate.toISOString().split('T')[0];
+  const dateISO = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,'0')}-${String(selectedDate.getDate()).padStart(2,'0')}`;
 
   section.innerHTML = `<div id="availability-results"><p style="color:#999;font-size:13px;padding:12px 0;">Checking availability...</p></div>`;
 
@@ -766,7 +766,7 @@ async function completeBooking() {
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const serviceNames = selectedServices.map(id => SERVICES.find(s=>s.id===id).name).join(', ');
   const dateStr = selectedDate ? `${dayNames[selectedDate.getDay()]} ${selectedDate.getDate()} ${months[selectedDate.getMonth()]} ${selectedDate.getFullYear()}` : '—';
-  const dateISO = selectedDate ? selectedDate.toISOString().split('T')[0] : '';
+  const dateISO = selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,'0')}-${String(selectedDate.getDate()).padStart(2,'0')}` : '';
 
   // Save booking to server
   try {
